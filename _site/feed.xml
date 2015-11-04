@@ -6,13 +6,15 @@
 </description>
     <link>http://jfcloutier.github.io/</link>
     <atom:link href="http://jfcloutier.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 04 Nov 2015 16:19:22 -0500</pubDate>
-    <lastBuildDate>Wed, 04 Nov 2015 16:19:22 -0500</lastBuildDate>
+    <pubDate>Wed, 04 Nov 2015 16:29:32 -0500</pubDate>
+    <lastBuildDate>Wed, 04 Nov 2015 16:29:32 -0500</lastBuildDate>
     <generator>Jekyll v3.0.0</generator>
     
       <item>
         <title>CQRS with Elixir and Phoenix</title>
-        <description>&lt;p&gt;I am currently implementing a REST API for a California startup (it’s all very hush hush).&lt;/p&gt;
+        <description>&lt;p&gt;Wherein I describe how easy it was to implement the CQRS pattern in Elixir.&lt;/p&gt;
+
+&lt;p&gt;I am currently implementing a REST API for a California startup (it’s all very hush hush).&lt;/p&gt;
 
 &lt;p&gt;Since I could pick my own tools, I gleefully chose &lt;a href=&quot;http://elixir-lang.org&quot;&gt;Elixir&lt;/a&gt; and the &lt;a href=&quot;http://http://www.phoenixframework.org/&quot;&gt;Phoenix Framework&lt;/a&gt;.&lt;/p&gt;
 
