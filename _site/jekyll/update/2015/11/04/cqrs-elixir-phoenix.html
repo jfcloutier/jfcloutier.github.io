@@ -78,7 +78,7 @@ Being purely action-performing methods, commands always have a void return type.
 Queries, on the other hand, should be idempotent, that is, they don’t have any visible side effects on the system.</p>
 </blockquote>
 
-<p>I found that the mix of Phoenix controllers, <a href="http://learnyousomeerlang.com/what-is-otp">OTP</a> and [Elixir macros] (http://elixir-lang.org/getting-started/meta/macros.html) made it very easy for me to implement my own simplified version of CQRS.</p>
+<p>I found that the mix of Phoenix controllers, <a href="http://learnyousomeerlang.com/what-is-otp">OTP</a> and <a href="http://elixir-lang.org/getting-started/meta/macros.html">Elixir macros</a> made it very easy for me to implement my own simplified version of CQRS.</p>
 
 <p>First, a bird’s eye view of the architecture as it pertains to CQRS:</p>
 
@@ -219,7 +219,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <span class="c1">#...</span>
 <span class="k">end</span></code></pre></figure>
 
-<p>I wrote a BackupServer (a GenServer) that synchronizes taking a database snapshot or journaling a command (only one at a time and in the order requested).</p>
+<p>I wrote a BackupServer (a GenServer - not shown) that synchronizes taking a database snapshot or journaling a command (only one at a time and in the order requested).</p>
 
 <p>Now back to queries and how they are cached. I wrote a macro to wrap GenServer calls that I want cached (caching yielded sub-micro second REST API response times!)</p>
 
@@ -247,7 +247,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
    <span class="c1">#...</span>
  <span class="k">end</span></code></pre></figure>
 
-<p>I implemented a simple CacheServer (another GenServer) that manages all cache accesses.</p>
+<p>I implemented a simple CacheServer (another GenServer - not shown) that manages all cache accesses.</p>
 
 <p>And that’s it! It took me about a day’s work. I must say that I am more impressed that ever by the power and elegance of Elixir and OTP.</p>
 
@@ -293,7 +293,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
       </div>
 
       <div class="footer-col footer-col-3">
-        <p>Small discoveries from a humble programmer standing on the shoulders of giants.
+        <p>Programming notes by a humble programmer standing on the shoulders of giants.
 </p>
       </div>
     </div>
