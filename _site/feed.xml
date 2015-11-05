@@ -6,8 +6,8 @@
 </description>
     <link>http://jfcloutier.github.io/</link>
     <atom:link href="http://jfcloutier.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 04 Nov 2015 20:58:34 -0500</pubDate>
-    <lastBuildDate>Wed, 04 Nov 2015 20:58:34 -0500</lastBuildDate>
+    <pubDate>Wed, 04 Nov 2015 21:00:08 -0500</pubDate>
+    <lastBuildDate>Wed, 04 Nov 2015 21:00:08 -0500</lastBuildDate>
     <generator>Jekyll v3.0.0</generator>
     
       <item>
@@ -209,7 +209,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
 
 &lt;p&gt;I implemented a simple CacheServer (another GenServer - not shown) that manages all cache accesses.&lt;/p&gt;
 
-&lt;p&gt;And that’s it! It took me about a day’s work. I must say that I am more impressed that ever by the power and elegance of Elixir and OTP.&lt;/p&gt;
+&lt;p&gt;And that’s it! It took me about a day’s work. I must say that I am more impressed than ever by the power and elegance of Elixir and OTP.&lt;/p&gt;
 </description>
         <pubDate>Wed, 04 Nov 2015 13:37:24 -0500</pubDate>
         <link>http://jfcloutier.github.io/jekyll/update/2015/11/04/cqrs-elixir-phoenix.html</link>

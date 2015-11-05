@@ -210,4 +210,4 @@ defmodule CqrsMacros do
 
 I implemented a simple CacheServer (another GenServer - not shown) that manages all cache accesses.
 
-And that's it! It took me about a day's work. I must say that I am more impressed that ever by the power and elegance of Elixir and OTP.
+And that's it! It took me about a day's work. I must say that I am more impressed than ever by the power and elegance of Elixir and OTP.
