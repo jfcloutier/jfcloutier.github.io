@@ -40,7 +40,7 @@ It was remarkably easy to implement the CQRS pattern for two reasons:
 * All API calls are funneled through GenServers (my application services)
 * A GenServer is only one thin layer short of explicit commands vs queries
 
-First, here's how a GenServer API function looks like that a Phoenix controller would call:
+First, here's what GenServer API functions look like that a Phoenix controller would call:
 
 {% highlight elixir %}
 defmodule AnApplicationService do
@@ -49,6 +49,10 @@ defmodule AnApplicationService do
   
   def update_something(param1, param2) do
     GenServer.call(@name, {:update_something, param1, param2})
+  end
+  
+  def get_something(param1, param2) do
+    GenServer.call(@name, {:get_something, param1, param2})
   end
   
   #...
@@ -64,7 +68,13 @@ defmodule SomeApplicationService do
   
   def handle_call({:update_something, param1, param2}, caller, state) do
     # ...
-    result = SomeDataService.write_to_db(...)
+    SomeDataService.write_to_db(...)
+    {:reply, :ok, state}
+  end
+  
+  def handle_call({:get_something, param1, param2}, caller, state) do
+    # ...
+    result = SomeDataService.read_from_db(...)
     {:reply, {:ok, result}, state}
   end
   
