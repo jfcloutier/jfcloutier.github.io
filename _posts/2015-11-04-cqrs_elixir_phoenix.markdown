@@ -5,7 +5,7 @@ date:   2015-11-04 13:37:24 -0500
 categories: jekyll update
 ---
 
-Wherein I describe how easy it was to implement the CQRS pattern in Elixir.
+_Wherein I describe how easy it was to implement the CQRS pattern in Elixir._
 
 I am currently implementing a REST API for a California startup (it's all very hush hush). Since I could pick my own tools, I gleefully chose [Elixir](http://elixir-lang.org) and the [Phoenix Framework](http://http://www.phoenixframework.org/).
 
