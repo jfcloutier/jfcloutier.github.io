@@ -6,8 +6,8 @@
 </description>
     <link>http://jfcloutier.github.io/</link>
     <atom:link href="http://jfcloutier.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 04 Nov 2015 22:14:27 -0500</pubDate>
-    <lastBuildDate>Wed, 04 Nov 2015 22:14:27 -0500</lastBuildDate>
+    <pubDate>Thu, 05 Nov 2015 09:20:48 -0500</pubDate>
+    <lastBuildDate>Thu, 05 Nov 2015 09:20:48 -0500</lastBuildDate>
     <generator>Jekyll v3.0.0</generator>
     
       <item>
@@ -40,20 +40,20 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   &lt;li&gt;The Phoenix Endpoint receives REST calls and routes them to controller functions&lt;/li&gt;
   &lt;li&gt;Each controller function converts the JSON parameters into arguments for calls to application service functions (each application service is a supervised &lt;a href=&quot;http://20bits.com/article/erlang-a-generic-server-tutorial&quot;&gt;GenServer&lt;/a&gt;)&lt;/li&gt;
   &lt;li&gt;An application service function invoked by a Phoenix controller is either a command or a query&lt;/li&gt;
-  &lt;li&gt;Commands and queries hit the same database (CQRS would rather have each target a different)&lt;/li&gt;
+  &lt;li&gt;Commands and queries hit the same Mnesia database (CQRS would rather have each target a different one)&lt;/li&gt;
   &lt;li&gt;Execution of a command raises a “command event” sent to an &lt;a href=&quot;http://www.tattdcodemonkey.com/blog/2015/4/24/event-handling-in-elixir&quot;&gt;Event Manager&lt;/a&gt; that dispatches it to a command event handler&lt;/li&gt;
-  &lt;li&gt;The command event handler journals the event on a remote object store and, periodically, saves a snapshot of the entire database to that same store&lt;/li&gt;
+  &lt;li&gt;The command event handler journals the event on a remote object store and, periodically, saves a snapshot of the entire database to that same store (I use Amazon S3)&lt;/li&gt;
   &lt;li&gt;Queries don’t raise events but they do go through a caching server (queries are idempotent, so unless a command has been executed between two repeated queries, the results wil be the same and can be cached)&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;p&gt;It was remarkably easy to implement the CQRS pattern for two reasons:&lt;/p&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;All API calls are funneled through GenServers (my application services)&lt;/li&gt;
+  &lt;li&gt;All REST calls are funneled by Phoenix controllers through GenServers (my application services)&lt;/li&gt;
   &lt;li&gt;A GenServer is only one thin layer short of explicit commands vs queries&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;First, here’s what GenServer API functions look like that a Phoenix controller would call:&lt;/p&gt;
+&lt;p&gt;First, here’s what the GenServer API functions look like that a Phoenix controller would call:&lt;/p&gt;
 
 &lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-elixir&quot; data-lang=&quot;elixir&quot;&gt;&lt;span class=&quot;k&quot;&gt;defmodule&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;AnApplicationService&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
   &lt;span class=&quot;kn&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;GenServer&lt;/span&gt;
@@ -91,9 +91,9 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   &lt;span class=&quot;c1&quot;&gt;#...&lt;/span&gt;
 &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
-&lt;p&gt;The important point is that the Genserver process is called with an &lt;em&gt;immutable&lt;/em&gt; data structure ({:update_something, param1, param2} which is a tuple). The tuple is the command.&lt;/p&gt;
+&lt;p&gt;The Genserver process is called with an &lt;em&gt;immutable&lt;/em&gt; data structure ({:update_something, param1, param2} which is a tuple). That tuple is the command or query.&lt;/p&gt;
 
-&lt;p&gt;Queries handled by a GenServer/application service look the same. The difference, which is so far only implied in the code, is that a command will alter the database whereas a query will not.&lt;/p&gt;
+&lt;p&gt;Calls handled by a GenServer/application service look the same. The difference, which is so far only implied in the code, is that a command will alter the database whereas a query will not.&lt;/p&gt;
 
 &lt;p&gt;All I need to do is make that difference explicit and “wrap” some behavior around all commands (so they get journaled) and around all queries (so they are cached).&lt;/p&gt;
 
@@ -104,6 +104,12 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
 &lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-elixir&quot; data-lang=&quot;elixir&quot;&gt;&lt;span class=&quot;k&quot;&gt;defmodule&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;CqrsMacros&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
   &lt;span class=&quot;c1&quot;&gt;#...&lt;/span&gt;
   
+  &lt;span class=&quot;k&quot;&gt;defmacro&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__using__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+    &lt;span class=&quot;kn&quot;&gt;quote&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+      &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;unquote&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;__MODULE__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+ 
   &lt;span class=&quot;nv&quot;&gt;@doc&lt;/span&gt; &lt;span class=&quot;sd&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;Execute a command for a named server&quot;&lt;/span&gt;
   &lt;span class=&quot;k&quot;&gt;defmacro&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
     &lt;span class=&quot;kn&quot;&gt;quote&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;bind_quoted:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;name:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;command:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;unquote&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;true&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
@@ -130,7 +136,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   
 &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
-&lt;p&gt;The command macro wraps the GenServer call with a notification sent to the Event Manager of the command-as-event. The query macro wraps the GenServer call in another macro (‘cached(name, query) do…end’) that looks in the cache for the query result and, if not there, caches what the GenServer.call(…) returns.&lt;/p&gt;
+&lt;p&gt;The command macro wraps the GenServer call and adds a notification sent to the Event Manager of the command-as-event. The query macro wraps the GenServer call in another macro (‘cached(name, query) do…end’) that looks in the cache for the query result and, if not there, caches what the GenServer.call(…) returns.&lt;/p&gt;
 
 &lt;p&gt;I then modified my application service functions to explicitly issue commands or queries like this:&lt;/p&gt;
 
@@ -138,8 +144,8 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   &lt;span class=&quot;kn&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;GenServer&lt;/span&gt;
   &lt;span class=&quot;kn&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;CqrsMacros&lt;/span&gt;
   &lt;span class=&quot;c1&quot;&gt;#...&lt;/span&gt;
-  
-  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;update_something&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;update_something&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
     &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;@name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:update_something&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
   &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
 
@@ -149,7 +155,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
 
 &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
-&lt;p&gt;I then implemented the Event Manager function that receives the event command and dispatches to event handlers (I have only one event handler that does something with it; other event handlers ignore it)&lt;/p&gt;
+&lt;p&gt;I then implemented the Event Manager function that receives the event command and dispatches to all registered event handlers. The command event handler intercepts it.&lt;/p&gt;
 
 &lt;p&gt;The Event Manager processes command events as follows:&lt;/p&gt;
 
@@ -163,7 +169,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   &lt;span class=&quot;c1&quot;&gt;#...&lt;/span&gt;
 &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
-&lt;p&gt;The command event handler, registered with the EventManager, catches the command event:&lt;/p&gt;
+&lt;p&gt;The command event handler, registered with the EventManager, catches the command event thus:&lt;/p&gt;
 
 &lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-elixir&quot; data-lang=&quot;elixir&quot;&gt;&lt;span class=&quot;k&quot;&gt;defmodule&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;CommandEventHandler&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
   &lt;span class=&quot;c1&quot;&gt;#...&lt;/span&gt;

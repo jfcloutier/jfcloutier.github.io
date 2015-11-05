@@ -90,20 +90,20 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <li>The Phoenix Endpoint receives REST calls and routes them to controller functions</li>
   <li>Each controller function converts the JSON parameters into arguments for calls to application service functions (each application service is a supervised <a href="http://20bits.com/article/erlang-a-generic-server-tutorial">GenServer</a>)</li>
   <li>An application service function invoked by a Phoenix controller is either a command or a query</li>
-  <li>Commands and queries hit the same database (CQRS would rather have each target a different)</li>
+  <li>Commands and queries hit the same Mnesia database (CQRS would rather have each target a different one)</li>
   <li>Execution of a command raises a “command event” sent to an <a href="http://www.tattdcodemonkey.com/blog/2015/4/24/event-handling-in-elixir">Event Manager</a> that dispatches it to a command event handler</li>
-  <li>The command event handler journals the event on a remote object store and, periodically, saves a snapshot of the entire database to that same store</li>
+  <li>The command event handler journals the event on a remote object store and, periodically, saves a snapshot of the entire database to that same store (I use Amazon S3)</li>
   <li>Queries don’t raise events but they do go through a caching server (queries are idempotent, so unless a command has been executed between two repeated queries, the results wil be the same and can be cached)</li>
 </ul>
 
 <p>It was remarkably easy to implement the CQRS pattern for two reasons:</p>
 
 <ul>
-  <li>All API calls are funneled through GenServers (my application services)</li>
+  <li>All REST calls are funneled by Phoenix controllers through GenServers (my application services)</li>
   <li>A GenServer is only one thin layer short of explicit commands vs queries</li>
 </ul>
 
-<p>First, here’s what GenServer API functions look like that a Phoenix controller would call:</p>
+<p>First, here’s what the GenServer API functions look like that a Phoenix controller would call:</p>
 
 <figure class="highlight"><pre><code class="language-elixir" data-lang="elixir"><span class="k">defmodule</span> <span class="no">AnApplicationService</span> <span class="k">do</span>
   <span class="kn">use</span> <span class="no">GenServer</span>
@@ -141,9 +141,9 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <span class="c1">#...</span>
 <span class="k">end</span></code></pre></figure>
 
-<p>The important point is that the Genserver process is called with an <em>immutable</em> data structure ({:update_something, param1, param2} which is a tuple). The tuple is the command.</p>
+<p>The Genserver process is called with an <em>immutable</em> data structure ({:update_something, param1, param2} which is a tuple). That tuple is the command or query.</p>
 
-<p>Queries handled by a GenServer/application service look the same. The difference, which is so far only implied in the code, is that a command will alter the database whereas a query will not.</p>
+<p>Calls handled by a GenServer/application service look the same. The difference, which is so far only implied in the code, is that a command will alter the database whereas a query will not.</p>
 
 <p>All I need to do is make that difference explicit and “wrap” some behavior around all commands (so they get journaled) and around all queries (so they are cached).</p>
 
@@ -154,6 +154,12 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
 <figure class="highlight"><pre><code class="language-elixir" data-lang="elixir"><span class="k">defmodule</span> <span class="no">CqrsMacros</span> <span class="k">do</span>
   <span class="c1">#...</span>
   
+  <span class="k">defmacro</span> <span class="n">__using__</span><span class="p">(</span><span class="n">_options</span><span class="p">)</span> <span class="k">do</span>
+    <span class="kn">quote</span> <span class="k">do</span>
+      <span class="kn">import</span> <span class="kn">unquote</span><span class="p">(</span><span class="bp">__MODULE__</span><span class="p">)</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+ 
   <span class="nv">@doc</span> <span class="sd">"</span><span class="s2">Execute a command for a named server"</span>
   <span class="k">defmacro</span> <span class="n">command</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span> <span class="k">do</span>
     <span class="kn">quote</span> <span class="ss">bind_quoted:</span> <span class="p">[</span><span class="ss">name:</span> <span class="n">name</span><span class="p">,</span> <span class="ss">command:</span> <span class="n">command</span><span class="p">],</span> <span class="kn">unquote</span><span class="p">:</span> <span class="no">true</span> <span class="k">do</span>
@@ -180,7 +186,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   
 <span class="k">end</span></code></pre></figure>
 
-<p>The command macro wraps the GenServer call with a notification sent to the Event Manager of the command-as-event. The query macro wraps the GenServer call in another macro (‘cached(name, query) do…end’) that looks in the cache for the query result and, if not there, caches what the GenServer.call(…) returns.</p>
+<p>The command macro wraps the GenServer call and adds a notification sent to the Event Manager of the command-as-event. The query macro wraps the GenServer call in another macro (‘cached(name, query) do…end’) that looks in the cache for the query result and, if not there, caches what the GenServer.call(…) returns.</p>
 
 <p>I then modified my application service functions to explicitly issue commands or queries like this:</p>
 
@@ -188,8 +194,8 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <span class="kn">use</span> <span class="no">GenServer</span>
   <span class="kn">use</span> <span class="no">CqrsMacros</span>
   <span class="c1">#...</span>
-  
-  <span class="k">def</span> <span class="n">update_something</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span> <span class="k">do</span>
+
+<span class="k">def</span> <span class="n">update_something</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span> <span class="k">do</span>
     <span class="n">command</span><span class="p">(</span><span class="nv">@name</span><span class="p">,</span> <span class="p">{</span><span class="ss">:update_something</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">})</span>
   <span class="k">end</span>
 
@@ -199,7 +205,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
 
 <span class="k">end</span></code></pre></figure>
 
-<p>I then implemented the Event Manager function that receives the event command and dispatches to event handlers (I have only one event handler that does something with it; other event handlers ignore it)</p>
+<p>I then implemented the Event Manager function that receives the event command and dispatches to all registered event handlers. The command event handler intercepts it.</p>
 
 <p>The Event Manager processes command events as follows:</p>
 
@@ -213,7 +219,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <span class="c1">#...</span>
 <span class="k">end</span></code></pre></figure>
 
-<p>The command event handler, registered with the EventManager, catches the command event:</p>
+<p>The command event handler, registered with the EventManager, catches the command event thus:</p>
 
 <figure class="highlight"><pre><code class="language-elixir" data-lang="elixir"><span class="k">defmodule</span> <span class="no">CommandEventHandler</span> <span class="k">do</span>
   <span class="c1">#...</span>

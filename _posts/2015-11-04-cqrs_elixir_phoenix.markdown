@@ -30,17 +30,17 @@ In a nutshell:
 * The Phoenix Endpoint receives REST calls and routes them to controller functions
 * Each controller function converts the JSON parameters into arguments for calls to application service functions (each application service is a supervised [GenServer](http://20bits.com/article/erlang-a-generic-server-tutorial))
 * An application service function invoked by a Phoenix controller is either a command or a query
-* Commands and queries hit the same database (CQRS would rather have each target a different)
+* Commands and queries hit the same Mnesia database (CQRS would rather have each target a different one)
 * Execution of a command raises a "command event" sent to an [Event Manager](http://www.tattdcodemonkey.com/blog/2015/4/24/event-handling-in-elixir) that dispatches it to a command event handler
-* The command event handler journals the event on a remote object store and, periodically, saves a snapshot of the entire database to that same store
+* The command event handler journals the event on a remote object store and, periodically, saves a snapshot of the entire database to that same store (I use Amazon S3)
 * Queries don't raise events but they do go through a caching server (queries are idempotent, so unless a command has been executed between two repeated queries, the results wil be the same and can be cached)
 
 It was remarkably easy to implement the CQRS pattern for two reasons:
 
-* All API calls are funneled through GenServers (my application services)
+* All REST calls are funneled by Phoenix controllers through GenServers (my application services)
 * A GenServer is only one thin layer short of explicit commands vs queries
 
-First, here's what GenServer API functions look like that a Phoenix controller would call:
+First, here's what the GenServer API functions look like that a Phoenix controller would call:
 
 {% highlight elixir %}
 defmodule AnApplicationService do
@@ -82,9 +82,9 @@ defmodule SomeApplicationService do
 end
 {% endhighlight %}
 
-The important point is that the Genserver process is called with an *immutable* data structure ({:update_something, param1, param2} which is a tuple). The tuple is the command.
+The Genserver process is called with an *immutable* data structure ({:update_something, param1, param2} which is a tuple). That tuple is the command or query.
 
-Queries handled by a GenServer/application service look the same. The difference, which is so far only implied in the code, is that a command will alter the database whereas a query will not.
+Calls handled by a GenServer/application service look the same. The difference, which is so far only implied in the code, is that a command will alter the database whereas a query will not.
 
 All I need to do is make that difference explicit and "wrap" some behavior around all commands (so they get journaled) and around all queries (so they are cached).
 
@@ -96,6 +96,12 @@ So I defined these two macros:
 defmodule CqrsMacros do
   #...
   
+  defmacro __using__(_options) do
+    quote do
+      import unquote(__MODULE__)
+    end
+  end
+ 
   @doc "Execute a command for a named server"
   defmacro command(name, command) do
     quote bind_quoted: [name: name, command: command], unquote: true do
@@ -123,7 +129,7 @@ defmodule CqrsMacros do
 end
 {% endhighlight %}
 
-The command macro wraps the GenServer call with a notification sent to the Event Manager of the command-as-event. The query macro wraps the GenServer call in another macro ('cached(name, query) do...end') that looks in the cache for the query result and, if not there, caches what the GenServer.call(...) returns.
+The command macro wraps the GenServer call and adds a notification sent to the Event Manager of the command-as-event. The query macro wraps the GenServer call in another macro ('cached(name, query) do...end') that looks in the cache for the query result and, if not there, caches what the GenServer.call(...) returns.
 
 I then modified my application service functions to explicitly issue commands or queries like this:
 
@@ -132,8 +138,8 @@ defmodule SomeApplicationService do
   use GenServer
   use CqrsMacros
   #...
-  
-  def update_something(param1, param2) do
+
+def update_something(param1, param2) do
     command(@name, {:update_something, param1, param2})
   end
 
@@ -144,7 +150,7 @@ defmodule SomeApplicationService do
 end
 {% endhighlight %}
 
-I then implemented the Event Manager function that receives the event command and dispatches to event handlers (I have only one event handler that does something with it; other event handlers ignore it)
+I then implemented the Event Manager function that receives the event command and dispatches to all registered event handlers. The command event handler intercepts it.
 
 The Event Manager processes command events as follows:
 
@@ -160,7 +166,7 @@ defmodule EventManager do
 end
 {% endhighlight %}
 
-The command event handler, registered with the EventManager, catches the command event:
+The command event handler, registered with the EventManager, catches the command event thus:
 
 {% highlight elixir %}
 defmodule CommandEventHandler do
