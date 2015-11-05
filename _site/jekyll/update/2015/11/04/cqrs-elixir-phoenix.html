@@ -110,7 +110,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <span class="c1">#...</span>
   
   <span class="k">def</span> <span class="n">update_something</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span> <span class="k">do</span>
-    <span class="no">GenServer</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="nv">@name</span><span class="p">,</span> <span class="p">{</span><span class="ss">:do_something</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">})</span>
+    <span class="no">GenServer</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="nv">@name</span><span class="p">,</span> <span class="p">{</span><span class="ss">:update_something</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">})</span>
   <span class="k">end</span>
   
   <span class="c1">#...</span>
@@ -122,7 +122,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <span class="kn">use</span> <span class="no">GenServer</span>
   <span class="c1">#...</span>
   
-  <span class="k">def</span> <span class="n">handle_call</span><span class="p">({</span><span class="ss">:do_something</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">},</span> <span class="n">caller</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span> <span class="k">do</span>
+  <span class="k">def</span> <span class="n">handle_call</span><span class="p">({</span><span class="ss">:update_something</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">},</span> <span class="n">caller</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span> <span class="k">do</span>
     <span class="c1"># ...</span>
     <span class="n">result</span> <span class="o">=</span> <span class="no">SomeDataService</span><span class="o">.</span><span class="n">write_to_db</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
     <span class="p">{</span><span class="ss">:reply</span><span class="p">,</span> <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">result</span><span class="p">},</span> <span class="n">state</span><span class="p">}</span>
@@ -131,7 +131,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <span class="c1">#...</span>
 <span class="k">end</span></code></pre></figure>
 
-<p>The important point is that the Genserver process is called with an <em>immutable</em> data structure ({:do_something, param1, param2} which is a tuple). The tuple is the command.</p>
+<p>The important point is that the Genserver process is called with an <em>immutable</em> data structure ({:update_something, param1, param2} which is a tuple). The tuple is the command.</p>
 
 <p>Queries handled by a GenServer/application service look the same. The difference, which is so far only implied in the code, is that a command will alter the database whereas a query will not.</p>
 
@@ -180,7 +180,7 @@ Queries, on the other hand, should be idempotent, that is, they don’t have any
   <span class="c1">#...</span>
   
   <span class="k">def</span> <span class="n">update_something</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span> <span class="k">do</span>
-    <span class="n">command</span><span class="p">(</span><span class="nv">@name</span><span class="p">,</span> <span class="p">{</span><span class="ss">:do_something</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">})</span>
+    <span class="n">command</span><span class="p">(</span><span class="nv">@name</span><span class="p">,</span> <span class="p">{</span><span class="ss">:update_something</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">})</span>
   <span class="k">end</span>
 
   <span class="k">def</span> <span class="n">get_something</span><span class="p">(</span><span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">)</span> <span class="k">do</span>

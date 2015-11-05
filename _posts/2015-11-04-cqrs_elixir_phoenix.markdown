@@ -48,7 +48,7 @@ defmodule AnApplicationService do
   #...
   
   def update_something(param1, param2) do
-    GenServer.call(@name, {:do_something, param1, param2})
+    GenServer.call(@name, {:update_something, param1, param2})
   end
   
   #...
@@ -62,7 +62,7 @@ defmodule SomeApplicationService do
   use GenServer
   #...
   
-  def handle_call({:do_something, param1, param2}, caller, state) do
+  def handle_call({:update_something, param1, param2}, caller, state) do
     # ...
     result = SomeDataService.write_to_db(...)
     {:reply, {:ok, result}, state}
@@ -72,7 +72,7 @@ defmodule SomeApplicationService do
 end
 {% endhighlight %}
 
-The important point is that the Genserver process is called with an *immutable* data structure ({:do_something, param1, param2} which is a tuple). The tuple is the command.
+The important point is that the Genserver process is called with an *immutable* data structure ({:update_something, param1, param2} which is a tuple). The tuple is the command.
 
 Queries handled by a GenServer/application service look the same. The difference, which is so far only implied in the code, is that a command will alter the database whereas a query will not.
 
@@ -124,7 +124,7 @@ defmodule SomeApplicationService do
   #...
   
   def update_something(param1, param2) do
-    command(@name, {:do_something, param1, param2})
+    command(@name, {:update_something, param1, param2})
   end
 
   def get_something(param1, param2) do
