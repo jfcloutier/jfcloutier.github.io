@@ -19,7 +19,7 @@ To handle the expected complexity, I went for an architecture that cleanly separ
 >Being purely action-performing methods, commands always have a void return type.
 >Queries, on the other hand, should be idempotent, that is, they don't have any visible side effects on the system.
 
-I found that the mix of Phoenix controllers, [OTP](http://learnyousomeerlang.com/what-is-otp) and [Elixir macros] (http://elixir-lang.org/getting-started/meta/macros.html) made it very easy for me to implement my own simplified version of CQRS.
+I found that the mix of Phoenix controllers, [OTP](http://learnyousomeerlang.com/what-is-otp) and [Elixir macros](http://elixir-lang.org/getting-started/meta/macros.html) made it very easy for me to implement my own simplified version of CQRS.
 
 First, a bird's eye view of the architecture as it pertains to CQRS:
 
@@ -168,7 +168,7 @@ defmodule CommandEventHandler do
 end
 {% endhighlight %}
 
-I wrote a BackupServer (a GenServer) that synchronizes taking a database snapshot or journaling a command (only one at a time and in the order requested).
+I wrote a BackupServer (a GenServer - not shown) that synchronizes taking a database snapshot or journaling a command (only one at a time and in the order requested).
 
 Now back to queries and how they are cached. I wrote a macro to wrap GenServer calls that I want cached (caching yielded sub-micro second REST API response times!)
 
@@ -198,6 +198,6 @@ defmodule CqrsMacros do
  end
 {% endhighlight %}
 
-I implemented a simple CacheServer (another GenServer) that manages all cache accesses.
+I implemented a simple CacheServer (another GenServer - not shown) that manages all cache accesses.
 
 And that's it! It took me about a day's work. I must say that I am more impressed that ever by the power and elegance of Elixir and OTP.
