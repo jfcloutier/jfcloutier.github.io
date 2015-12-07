@@ -15,7 +15,7 @@ The REST API I am responsible for is quite rich and bound to grow quickly over t
 
 To handle the expected complexity, I went for an architecture that cleanly separates concerns. Among other things, I tried to clearly distinguish commands from queries, following the [CQRS - Command Query Responsibility Separation pattern](http://http://cqrs.nu/Faq/command-query-responsibility-segregation)
 
->[CQRS] means that a method is either a command performing an action, or a query that returns data, but not both.
+>[Command-query separation] means that a method is either a command performing an action, or a query that returns data, but not both.
 >Being purely action-performing methods, commands always have a void return type.
 >Queries, on the other hand, should be idempotent, that is, they don't have any visible side effects on the system.
 

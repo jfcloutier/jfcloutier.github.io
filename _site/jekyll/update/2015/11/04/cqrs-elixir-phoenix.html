@@ -73,7 +73,7 @@
 <p>To handle the expected complexity, I went for an architecture that cleanly separates concerns. Among other things, I tried to clearly distinguish commands from queries, following the <a href="http://http://cqrs.nu/Faq/command-query-responsibility-segregation">CQRS - Command Query Responsibility Separation pattern</a></p>
 
 <blockquote>
-  <p>[CQRS] means that a method is either a command performing an action, or a query that returns data, but not both.
+  <p>[Command-query separation] means that a method is either a command performing an action, or a query that returns data, but not both.
 Being purely action-performing methods, commands always have a void return type.
 Queries, on the other hand, should be idempotent, that is, they don’t have any visible side effects on the system.</p>
 </blockquote>
